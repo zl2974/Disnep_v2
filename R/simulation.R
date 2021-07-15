@@ -1,12 +1,10 @@
 ##### whole simulation process####
-simulation = function(){
-    
+simulation = function() {
     library(MASS)
     library(tidyverse)
     
     
-    n_simulation = 50
-    
+    id = 1
     n_signal = 50
     n_noise = 950
     strong_signal_mu = 10
@@ -26,40 +24,44 @@ simulation = function(){
         strong_corr = strong_corr,
         median_corr = median_corr,
         noise_corr = noise_corr,
-        sigma = sigma)
+        sigma = sigma
+    )
+    
+    #### generate a simulation data####
+    
+    source("R/simulate_gene_expr_data.R")
+    
+    gene_expr_data = pmap(settings, simulate_gene_expr_data)[[1]]
     
     
-    for (sim in 1:n_simulation) {
-        gc(verbose = F,reset = T)
-        #### generate a simulation data####
-        
-        source("R/simulate_gene_expr_data.R")
-        
-        gene_expr_data = pmap(settings,simulate_gene_expr_data)[[1]]
-        
-        
-        #### perform t-test           #####
-        
-        source("R/t_test.R")
-        
-        signals = t_test(gene_expr_data$case,gene_expr_data$control)
-        
-        #### integrate case and control data
-        
-        gene_expr_data = do.call(rbind,gene_expr_data)
-        
-        
-        #### simulate gene interaction data
-        
-        source("R/gene_int_data.R")
-        
+    #### perform t-test           #####
     
-        
-        ####  perform Score Prioritized ###
-        
-        
-        source("R/prioritize.R")
-        
-        
-    }
+    source("R/t_test.R")
+    
+    signals = t_test(gene_expr_data$case, gene_expr_data$control)
+    
+    #### integrate case and control data
+    
+    gene_expr_data = do.call(rbind, gene_expr_data)
+    
+    
+    #### simulate gene interaction data
+    
+    source("R/simulate_gene_int_data.R")
+    
+    gene_int_data = simulate_gene_int_data(n_signal,n_noise)
+    
+    rownames(gene_int_data) = rownames(gene_expr_data)
+    colnames(gene_int_data) = colnames(gene_expr_data)
+    
+    
+    ####  perform Score Prioritized ###
+    
+    ## GeneWander
+    
+    source("R/genewanderer.R")
+    score_genewanderer = genewanderer(signals,gene_int_data)
+    saveRDS(score_genewanderer,paste0("cache/",id,"genewanderer.Rdata"))
+    
+    
 }
