@@ -7,7 +7,7 @@ RWR = function(signals,
                .max_iter = 100,
                .tol = 1e-6
 ){
-  ### normalize transition matrix
+  ### column normalize transition matrix
   
   diag(trans) = 0
   
