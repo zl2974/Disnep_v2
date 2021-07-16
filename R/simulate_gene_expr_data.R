@@ -37,9 +37,6 @@ simulate_gene_expr_data = function(n_signal,
                                     sigma,
                                     n_control)
     
-    if (mean(case_data[, 1:n_signal] < case_data[, n_signal + 1:n_noise]))
-        stop("signal gene is not at first")  # make sure the top n_signal gene are indeed signal
-    
     
     return(list(case = case_data,
                 control = control_data))

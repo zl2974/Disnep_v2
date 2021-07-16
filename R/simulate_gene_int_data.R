@@ -7,13 +7,15 @@ simulate_gene_int_data = function(n_signal,
     library(tidyverse)
     
     disease = 
-        read_tsv("data/C1378703_disease_gda_summary.tsv")$Gene
+        read_tsv("data/C1378703_disease_gda_summary.tsv",progress = F)$Gene
     
-    protein_gene_name = readr::read_csv("data/String_Network_default_node_04.csv") %>% 
+    protein_gene_name = readr::read_csv("data/String_Network_default_node_04.csv",
+                                        progress = F) %>% 
         select(gene = `display name` , protein = `stringdb::database identifier`) %>% 
         filter(!str_detect(gene,"ENSP"))
     
-    ppi = read.csv("data/9606.protein.links.v11.0.txt",sep = "") %>% 
+    ppi = read.csv("data/9606.protein.links.v11.0.txt",sep = " ",
+                   ) %>% 
         left_join(protein_gene_name,by =c('protein1' = 'protein')) %>% 
         left_join(protein_gene_name,by =c('protein2' = 'protein')) %>% 
         select(gene_1 = gene.x,gene_2=gene.y,score = combined_score)

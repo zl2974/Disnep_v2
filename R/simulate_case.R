@@ -30,7 +30,11 @@ simulate_case = function(n_signal,
     
     diag(Sigma) = 1
     
-    case_data = MASS::mvrnorm(n_case,mu = Mu,Sigma = sigma^2*Sigma)
+    Sigma = (Sigma + t(Sigma))/2
+    
+    Sigma = sigma^2*Sigma
+    
+    case_data = MASS::mvrnorm(n_case,mu = Mu,Sigma = Sigma)
     
     colnames(case_data) = stringr::str_c("V", 1001:(1000 + n_signal + n_noise))
     

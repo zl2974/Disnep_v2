@@ -1,0 +1,109 @@
+---
+title: "DISNEP simulation"
+author: "ZHUOHUI Liang"
+date: "7/15/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(MASS)
+library(SMUT)
+library(foreach)
+library(parallel)
+library(tidyverse)
+
+knitr::opts_chunk$set(echo = F,
+                      message = F)
+```
+
+
+
+```{r give_setting}
+settings = tibble(
+  id = list(1:20),
+  scenario = 1:5,
+  n_signal = rep(20,5),
+  n_noise  = rep(980,5),
+  strong_signal_mu = c(10,10,10,11,12),
+  median_signal_mu = c(9,9,9,10,11),
+  noise_mu = rep(8,5),
+  strong_corr = rep(0.1,5),
+  median_corr = rep(0.02,5),
+  noise_corr = rep(0.01,5),
+  sigma = rep(3,2,1,1,1)
+)
+
+
+knitr::kable(t(settings %>% select(-id)))
+
+settings = settings %>% 
+  filter(scenario %in% 1:5) %>% 
+  select(-scenario) %>% 
+  unnest(id) %>% 
+  mutate(id = order(id))
+```
+
+
+
+
+```{r simulation}
+
+source("R/simulation.R")
+
+system("rm cache/* -r")
+
+mclapply(1:nrow(settings),
+         FUN = function(x) {pmap(settings[x,],simulation)},
+         mc.cores = 4
+         )
+
+```
+
+
+
+```{r auc}
+
+result = foreach(file = list.files("cache/result/",full.names = T),
+                  .combine = bind_rows) %do% readRDS(file)
+
+result = result %>%
+  unite("mu_sigma", c(strong_signal_mu:noise_mu, sigma)) %>%
+  select(-ends_with("corr")) %>% 
+  mutate(
+    disease_gene = map(n_signal,  ~ str_c("V", 1000 + (1:.x))),
+    top_k = map2(n_signal,n_noise,~seq(1,(.x+.y),20)) 
+    )%>% 
+  unnest(top_k) %>% 
+  mutate(
+    tp = map2(score, top_k,  ~ slice_max(.x, order_by = score, n = .y)),
+    tp = map2_dbl(tp,disease_gene,~sum(.x$gene %in% .y)),
+    fp = top_k - tp,
+    tn = n_noise -fp,
+    fn = n_signal -tp,
+    sens = tp/n_signal,
+    spec = tn/n_noise,
+    fpr = 1-spec
+  )
+  
+
+result %>%
+  group_by(method, mu_sigma,top_k) %>%
+  summarise(sens = mean(sens),
+            spec = mean(spec),
+            fpr = mean(fpr)) %>%
+  ggplot(aes(x = fpr, y = sens, color = method)) +
+  geom_step()+
+  facet_wrap(.~mu_sigma)
+
+result %>%
+  filter(fpr<=0.1) %>% 
+  group_by(id,method, mu_sigma) %>%
+  mutate(fpr_1 = lag(fpr),
+         auc = -sens * (fpr_1 - fpr)) %>%
+  summarise(auc = sum(auc,na.rm = T))%>% 
+  ggplot(aes(x = method, y = auc, color = method)) +
+  geom_boxplot()+
+  facet_wrap(.~mu_sigma)
+
+```
+

@@ -14,10 +14,11 @@ t_test = function(data_1, data_2, .return = "pval") {
     score = as.numeric(score)
     
     if (.return != "pval")
-        score = qnorm(1 - score)
+        score = -qnorm(score)
     
     t_score = tibble(gene = colnames(data_1),
-                     score = score)
+                     score = score) %>% 
+        arrange(gene)
     
     return(t_score)
 }

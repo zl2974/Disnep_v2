@@ -17,7 +17,12 @@ simulate_control = function(n_signal,
     
     diag(Sigma) = 1
     
-    control_data = MASS::mvrnorm(n_control,mu = Mu,Sigma = sigma^2*Sigma)
+    Sigma = (Sigma + t(Sigma))/2
+    
+    
+    Sigma = sigma^2*Sigma
+    
+    control_data = MASS::mvrnorm(n_control,mu = Mu,Sigma = Sigma)
     
     colnames(control_data) = stringr::str_c("V", 1001:(1000 + n_signal +
                                                            n_noise))
