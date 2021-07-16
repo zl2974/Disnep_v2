@@ -16,17 +16,18 @@ library(tidyverse)
 set.seed(123123)
 
 knitr::opts_chunk$set(echo = F,
-                      message = F)
+                      message = F,
+                      warning = F)
 ```
 
-
+# Simulation Settings
 
 ```{r give_setting}
 settings = tibble(
-  id = list(1:10),
+  id = list(1:50),
   scenario = 1:5,
-  n_signal = rep(20,5),
-  n_noise  = rep(980,5),
+  n_signal = rep(50,5),
+  n_noise  = rep(1950,5),
   strong_signal_mu = c(10,10,10,11,12),
   median_signal_mu = c(9,9,9,10,11),
   noise_mu = rep(8,5),
@@ -37,7 +38,8 @@ settings = tibble(
 )
 
 
-knitr::kable(t(settings %>% select(-id)))
+knitr::kable(t(settings %>% select(-id)),
+             title = "Simulation settings")
 
 settings = settings %>% 
   filter(scenario %in% 1:5) %>% 
@@ -46,21 +48,62 @@ settings = settings %>%
   mutate(id = order(id))
 ```
 
+   For each simulation, there will be two data/matrix simulated, namely gene-gene-interaction network and gene-expression data. Each simulation we will compare t-test, GeneWanderer( random walk with restart on gene-gene-interaction network) and Disnep( random walk with restart on disease-enhanced-gene-gene-interaction network[Ruan,2019])
+   
+## Gene-gene-interaction network
+
+   In each simulation, network is sample from existing database, we have homo sapiens(human) gene-gene(protein-protein) interaction network(PPI) downloaded from V.11 STRING. Since Genewanderer only consider gene-gene-interaction score > 0.4, we use Cytoscape to pull STRING node information from STRING containing only score > 0.4 and map Gene name to PPI.
+   
+   And we set the gene from DISGENET V7 renal carcinoma disease(C1378703) as disease/signal gene  list and the rest of the gene not in DISGENET list as noise gene.
+   
+   We sample `r settings$n_signal[[1]]` gene from disease gene list and `r settings$n_noise[[1]]` as noise gene. We keep the edge of the gene from STRING PPI network and set all missing value as 0. And we order the first `r settings$n_signal[[1]]` gene as signal gene just for convenient.
+   
+
+## Gene Expression network
+
+  In each simulation, we generate 300 case and 50 control sample. 
+  
+### Case
+
+  The case set to have `r settings$n_signal[[1]]/2` strong signal gene, which each gene's mean is generated from N($\mu_1$,1), and use this mean to generate gene expression level. case has another `r settings$n_signal[[1]]/2` median signal gene, which each gene's mean is generated from N($\mu_2$,1). the rest `r settings$n_noise[[1]]` gene are set as noise gene, which's mean is generate from N(8,1).
+  
+  The correlation between strong signal is sampled from U(0,0.1) and correlation between median signal is sampled from U(0,0.02) and correlation between noise is sampled from U(0,0.01). 
+  
+\begin{equation}
+Cov = sigma^2 *
+\begin{pmatrix}
+1 & \rho_{12} & 0 &0\\
+\rho{21} & 1 & \rho{23} & 0 \\
+0 & \rho{32} & 1 & \rho{34} \\
+0 & 0 & \rho{43} & 1\\
+\end{pmatrix}
+\end{equation}
+
+where $\rho_{12} = \rho_{21}^t$ is the triagle block sample from U(0,0.1) and vise versa for $\rho_{23},\rho{34}$
+
+## control
+
+ All genes in control is set to be noise and its mean generate from N(8,1) and correlation sample from U(0,0.01)
+ 
 
 
+all gene expression is generated from multivariate normal, with generated means and covariate as mention above.
 
-```{r simulation,eval=F}
+  
+
+
+```{r simulation,eval=T}
 
 source("R/simulation.R")
 
-system("rm cache/* -r")
+#system("rm cache/* -r")
 
 #mclapply(1:nrow(settings),
 #         FUN = function(x) {pmap(settings[x,],simulation)},
 #         mc.cores = 4
 #         )
 
-cl = parallel::makePSOCKcluster(4)
+cl = parallel::makePSOCKcluster(3)
 
 doParallel::registerDoParallel(cl)
 
@@ -77,10 +120,49 @@ stopCluster(cl)
 
 
 
-```{r auc}
 
+```{r data_example}
+result = readRDS(list.files("cache/simulation/",full.names = T)[[1]])
+
+a = as.matrix(result$gene_int[[1]])
+
+heatmap(
+  a[1:500, 1:500],
+  Rowv = NA,
+  Colv = NA,
+  col = topo.colors(8),
+  main = "Interaction first 500(included signals)"
+)
+
+a = colMeans(result$gene_expr[[1]])
+
+
+plot(1:500, a[1:500], main = paste("gene expression with mu", paste0(result[, 3:5], collapse = "-")))
+points(1:result$n_signal[[1]], a[1:result$n_signal[[1]]], col = "red", add = T)
+
+
+a = abs(cor(result$gene_expr[[1]]))
+
+diag(a) = 0
+
+heatmap(
+  t(a)[1:500, 1:500],
+  Rowv = NA,
+  Colv = NA,
+  col = topo.colors(8),
+  main = "Correlation first 500(included signals)"
+)
+
+invisible(gc())
+```
+
+
+
+```{r auc}
 result = foreach(file = list.files("cache/result/",full.names = T),
-                  .combine = bind_rows) %do% readRDS(file)
+                  .combine = bind_rows,
+                 .errorhandling = "remove") %do% readRDS(file)
+
 
 result = result %>%
   unite("mu_sigma", c(strong_signal_mu:noise_mu, sigma)) %>%
@@ -89,16 +171,16 @@ result = result %>%
     disease_gene = map(n_signal,  ~ str_c("V", 1000 + (1:.x))),
     top_k = map2(n_signal,n_noise,~seq(1,(.x+.y),10)) 
     )%>% 
-  unnest(top_k) %>% 
+  unnest(top_k) %>%
   mutate(
     tp = map2(score, top_k,  ~ slice_max(.x, order_by = score, n = .y)),
-    tp = map2_dbl(tp,disease_gene,~sum(.x$gene %in% .y)),
+    tp = map2_dbl(tp, disease_gene,  ~ sum(.x$gene %in% .y)),
     fp = top_k - tp,
-    tn = n_noise -fp,
-    fn = n_signal -tp,
-    sens = tp/n_signal,
-    spec = tn/n_noise,
-    fpr = 1-spec
+    tn = n_noise - fp,
+    fn = n_signal - tp,
+    sens = tp / n_signal,
+    spec = tn / n_noise,
+    fpr = 1 - spec
   )
   
 
@@ -109,8 +191,9 @@ result %>%
             fpr = mean(fpr)) %>%
   ggplot(aes(x = fpr, y = sens, color = method)) +
   geom_step()+
-  geom_abline(slope = 1)+
-  facet_wrap(.~mu_sigma)
+  geom_abline(slope = 1,alpha = 0.25)+
+  facet_wrap(.~mu_sigma)+
+  labs(title = "ROC")
 
 result %>%
   group_by(id,method, mu_sigma) %>%
@@ -120,7 +203,21 @@ result %>%
   summarise(auc = sum(auc,na.rm = T))%>% 
   ggplot(aes(x = method, y = auc, color = method)) +
   geom_boxplot()+
-  facet_wrap(.~mu_sigma,scales = "free_y")
+  facet_wrap(.~mu_sigma,scales = "free_y")+
+  labs(title = "AUC(FPR<0.1)")
 
+
+result %>%
+  group_by(id,method, mu_sigma) %>%
+  mutate(fpr_1 = lag(fpr),
+         auc = -sens * (fpr_1 - fpr)) %>%
+  filter(fpr<=0.1) %>% 
+  summarise(auc = sum(auc,na.rm = T))%>% 
+  group_by(method,mu_sigma) %>% 
+  summarise(mean_auc = mean(auc)) %>% 
+  pivot_wider(names_from = method,
+              values_from = mean_auc) %>% 
+  knitr::kable(title = "mean AUC(FPF<0.1)",
+               digits = 3)
 ```
 
