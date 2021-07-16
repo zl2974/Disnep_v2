@@ -130,7 +130,5 @@ simulation = function(id,
                        gene_expr = map(NA,~gene_expr_data)),
             paste0("cache/simulation/", Sys.Date(), "_", id, "_simulate_data.Rdata")
             )
-    
-    qgc = function() invisible(gc())
-    qgc()
+
 }

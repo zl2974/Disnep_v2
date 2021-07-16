@@ -23,7 +23,7 @@ knitr::opts_chunk$set(echo = F,
 
 ```{r give_setting}
 settings = tibble(
-  id = list(1:100),
+  id = list(1:10),
   scenario = 1:5,
   n_signal = rep(20,5),
   n_noise  = rep(980,5),
@@ -49,7 +49,7 @@ settings = settings %>%
 
 
 
-```{r simulation,eval=T}
+```{r simulation,eval=F}
 
 source("R/simulation.R")
 
@@ -120,7 +120,7 @@ result %>%
   summarise(auc = sum(auc,na.rm = T))%>% 
   ggplot(aes(x = method, y = auc, color = method)) +
   geom_boxplot()+
-  facet_wrap(.~mu_sigma)
+  facet_wrap(.~mu_sigma,scales = "free_y")
 
 ```
 
