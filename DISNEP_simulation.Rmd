@@ -10,7 +10,10 @@ library(MASS)
 library(SMUT)
 library(foreach)
 library(parallel)
+library(doParallel)
 library(tidyverse)
+
+set.seed(123123)
 
 knitr::opts_chunk$set(echo = F,
                       message = F)
@@ -20,7 +23,7 @@ knitr::opts_chunk$set(echo = F,
 
 ```{r give_setting}
 settings = tibble(
-  id = list(1:20),
+  id = list(1:100),
   scenario = 1:5,
   n_signal = rep(20,5),
   n_noise  = rep(980,5),
@@ -30,7 +33,7 @@ settings = tibble(
   strong_corr = rep(0.1,5),
   median_corr = rep(0.02,5),
   noise_corr = rep(0.01,5),
-  sigma = rep(3,2,1,1,1)
+  sigma = c(3,2,1,1,1)
 )
 
 
@@ -46,16 +49,29 @@ settings = settings %>%
 
 
 
-```{r simulation}
+```{r simulation,eval=T}
 
 source("R/simulation.R")
 
 system("rm cache/* -r")
 
-mclapply(1:nrow(settings),
-         FUN = function(x) {pmap(settings[x,],simulation)},
-         mc.cores = 4
-         )
+#mclapply(1:nrow(settings),
+#         FUN = function(x) {pmap(settings[x,],simulation)},
+#         mc.cores = 4
+#         )
+
+cl = parallel::makePSOCKcluster(4)
+
+doParallel::registerDoParallel(cl)
+
+foreach(
+  i = 1:nrow(settings),
+  .errorhandling = "remove",
+  .packages = c("MASS", "SMUT", "Matrix", "readr", "dplyr", "tidyverse"),
+  .verbose = F
+) %dopar% pmap(settings[i, ], simulation)
+
+stopCluster(cl)
 
 ```
 
@@ -71,7 +87,7 @@ result = result %>%
   select(-ends_with("corr")) %>% 
   mutate(
     disease_gene = map(n_signal,  ~ str_c("V", 1000 + (1:.x))),
-    top_k = map2(n_signal,n_noise,~seq(1,(.x+.y),20)) 
+    top_k = map2(n_signal,n_noise,~seq(1,(.x+.y),10)) 
     )%>% 
   unnest(top_k) %>% 
   mutate(
@@ -93,13 +109,14 @@ result %>%
             fpr = mean(fpr)) %>%
   ggplot(aes(x = fpr, y = sens, color = method)) +
   geom_step()+
+  geom_abline(slope = 1)+
   facet_wrap(.~mu_sigma)
 
 result %>%
-  filter(fpr<=0.1) %>% 
   group_by(id,method, mu_sigma) %>%
   mutate(fpr_1 = lag(fpr),
          auc = -sens * (fpr_1 - fpr)) %>%
+  filter(fpr<=0.1) %>% 
   summarise(auc = sum(auc,na.rm = T))%>% 
   ggplot(aes(x = method, y = auc, color = method)) +
   geom_boxplot()+

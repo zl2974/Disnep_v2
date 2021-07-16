@@ -11,16 +11,17 @@ simulation = function(id,
                       sigma,
                       ...) {
     
-    n_signal = 20
-    n_noise = 980
-    strong_signal_mu = 12
-    median_signal_mu = 11
-    noise_mu = 8
-    strong_corr = 0.1
-    median_corr = 0.02
-    noise_corr = 0.01
-    sigma = 1
-    
+    if (F) {
+        n_signal = 20
+        n_noise = 980
+        strong_signal_mu = 10
+        median_signal_mu = 9
+        noise_mu = 8
+        strong_corr = 0.1
+        median_corr = 0.02
+        noise_corr = 0.01
+        sigma = 1
+    }
     
     
     
@@ -130,5 +131,6 @@ simulation = function(id,
             paste0("cache/simulation/", Sys.Date(), "_", id, "_simulate_data.Rdata")
             )
     
-    invisible(gc())
+    qgc = function() invisible(gc())
+    qgc()
 }

@@ -49,11 +49,15 @@ simulate_gene_int_data = function(n_signal,
     
     if (any(c(
         rownames(gene_int)[1:n_signal] %in% noise_gene,
-        colnames(gene_int)[1:n_signal] %in% noise_gene,
+        colnames(gene_int)[1:n_signal] %in% noise_gene
+    )))
+        stop("signal gene location not correct")
+    
+    if (any(c(
         nrow(gene_int) != (n_signal + n_noise),
         ncol(gene_int) != (n_signal + n_noise)
     )))
-        stop("gene interaction format not correct")
+        stop("gene interaction dimenstion not correct")
     
     return(gene_int)
 

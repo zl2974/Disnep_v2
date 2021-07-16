@@ -18,27 +18,38 @@ disnep = function(signals,
   
   adjacency = abs(cor(gene_expr, method = "pearson"))
   
-  adjacency = adjacency[sorted_colname,sorted_colname]
+  adjacency = adjacency[sorted_colname, sorted_colname]
   
   diag(adjacency) = 0
   
   ### sort and build enhanced network
   
-  gene_int = gene_int[sorted_colname,sorted_colname]
+  gene_int = gene_int[sorted_colname, sorted_colname]
   
-  se = diffus_matrix(s0 = gene_int, adjacency = adjacency, alpha, iter)
+  se = diffus_matrix(
+    s0 = gene_int,
+    adjacency = adjacency,
+    alpha = alpha,
+    iter = iter
+  )
   
-  se = se[sorted_colname,sorted_colname]
+  se = se[sorted_colname, sorted_colname]
   
   snet_post = post_process(se, percent = 0.9)
   
   ### prioritizing
   
-  snet_post = snet_post[sorted_colname,sorted_colname]
+  snet_post = snet_post[sorted_colname, sorted_colname]
   
-  signals = dplyr::arrange(signals,gene)
+  signals = dplyr::arrange(signals, gene)
   
-  score = as_tibble(diffus_vec(signals, snet_post, type, iter))
+  score = as_tibble(diffus_vec(
+    signals,
+    snet_post,
+    type = type,
+    beta = beta,
+    iter = iter
+  ))
   
   return(score)
   
