@@ -16,7 +16,8 @@ diffus_matrix=function(s0,adjacency,alpha=0.75,iter=10,difference=1e-6){
   adjacency=adjacency[order(rownames(adjacency)),]
 
   diag(adjacency)=0
-  adjacency=t(t(adjacency)/colSums(adjacency))
+  source("R/normalize.R")
+  adjacency=normalize(adjacency)#t(t(adjacency)/colSums(adjacency))
 
   #initialize
   snet_1=s0
