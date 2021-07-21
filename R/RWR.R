@@ -18,9 +18,9 @@ RWR = function(signals,
   
   signals = arrange(signals,gene)
   
-  p0 = signals$score
+  p0 = as.matrix(as.numeric(signals$score))
   
-  current = signals$score
+  current = as.matrix(as.numeric(signals$score))
   
   previous = current+Inf
   
@@ -34,13 +34,15 @@ RWR = function(signals,
     
     current = beta * trans%*%previous + (1-beta)*p0
     
+    .iter = .iter + 1
+    
   }
   
   ### collect result
   
   result = tibble(gene = signals$gene,
-                  score = current) %>% 
-    arrange(score)
+                  score = as.numeric(current)) %>% 
+    arrange(score,desc=T)
   
   return(result)
   

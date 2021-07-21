@@ -24,7 +24,7 @@ knitr::opts_chunk$set(echo = F,
 
 ```{r give_setting}
 settings = tibble(
-  id = list(1:50),
+  id = list(1:10),
   scenario = 1:5,
   n_signal = rep(50,5),
   n_noise  = rep(1950,5),
@@ -92,11 +92,11 @@ all gene expression is generated from multivariate normal, with generated means 
   
 
 
-```{r simulation,eval=F}
+```{r simulation,eval=T}
 
 source("R/simulation.R")
 
-#system("rm cache/* -r")
+system("rm cache/**/*.Rdata -r")
 
 #mclapply(1:nrow(settings),
 #         FUN = function(x) {pmap(settings[x,],simulation)},
@@ -107,10 +107,18 @@ cl = parallel::makePSOCKcluster(3)
 
 doParallel::registerDoParallel(cl)
 
-foreach(
+result = foreach(
   i = 1:nrow(settings),
   .errorhandling = "remove",
-  .packages = c("MASS", "SMUT", "Matrix", "readr", "dplyr", "tidyverse"),
+  .packages = c(
+    "SNFtool",
+    "MASS",
+    "SMUT",
+    "Matrix",
+    "readr",
+    "dplyr",
+    "tidyverse"
+  ),
   .verbose = F
 ) %dopar% pmap(settings[i, ], simulation)
 
@@ -122,7 +130,7 @@ stopCluster(cl)
 
 
 ```{r data_example}
-result = readRDS(list.files("cache/simulation/",full.names = T)[[1]])
+result = readRDS(list.files("cache/simulation/",full.names = T,pattern = "Rdata")[[1]])
 
 a = as.matrix(result$gene_int[[1]])
 
@@ -156,39 +164,27 @@ heatmap(
 invisible(gc())
 ```
 
-
-
 ```{r auc}
-result = foreach(file = list.files("cache/result/",full.names = T),
+result = foreach(file = list.files("cache/result/",full.names = T,pattern = "Rdata"),
                   .combine = bind_rows,
                  .errorhandling = "remove") %do% readRDS(file)
-
 
 result = result %>%
   unite("mu_sigma", c(strong_signal_mu:noise_mu, sigma)) %>%
   select(-ends_with("corr")) %>% 
   mutate(
-    disease_gene = map(n_signal,  ~ str_c("V", 1000 + (1:.x))),
-    top_k = map2(n_signal,n_noise,~seq(1,(.x+.y),10)) 
-    )%>% 
-  unnest(top_k) %>%
-  mutate(
-    tp = map2(score, top_k,  ~ slice_max(.x, order_by = score, n = .y)),
-    tp = map2_dbl(tp, disease_gene,  ~ sum(.x$gene %in% .y)),
-    fp = top_k - tp,
-    tn = n_noise - fp,
-    fn = n_signal - tp,
-    sens = tp / n_signal,
-    spec = tn / n_noise,
-    fpr = 1 - spec
-  )
-  
+    disease_gene = map2(n_signal,n_noise,  ~ c(rep(1,.x),rep(0,.y))),
+    score = map(score,~arrange(.x,gene)$score),
+    auc = map2(score,disease_gene,~mltools::auc_roc(.x/max(.x),.y,returnDT = T))
+    ) %>% 
+  unnest(auc) %>% 
+  mutate(top_k = map2_dbl(score,Pred,~sum((.x/max(.x))>=.y)))
 
 result %>%
   group_by(method, mu_sigma,top_k) %>%
-  summarise(sens = mean(sens),
-            spec = mean(spec),
-            fpr = mean(fpr)) %>%
+  summarise(sens = mean(CumulativeTPR),
+            spec = mean(1-CumulativeFPR),
+            fpr = mean(CumulativeFPR)) %>%
   ggplot(aes(x = fpr, y = sens, color = method)) +
   geom_step()+
   geom_abline(slope = 1,alpha = 0.25)+
@@ -196,11 +192,9 @@ result %>%
   labs(title = "ROC")
 
 result %>%
+  filter(CumulativeFPR<=0.1) %>% 
   group_by(id,method, mu_sigma) %>%
-  mutate(fpr_1 = lag(fpr),
-         auc = -sens * (fpr_1 - fpr)) %>%
-  filter(fpr<=0.1) %>% 
-  summarise(auc = sum(auc,na.rm = T))%>% 
+  summarise(auc = max(CumulativeArea)) %>% 
   ggplot(aes(x = method, y = auc, color = method)) +
   geom_boxplot()+
   facet_wrap(.~mu_sigma,scales = "free_y")+
@@ -208,11 +202,9 @@ result %>%
 
 
 result %>%
+  filter(CumulativeFPR<=0.1) %>% 
   group_by(id,method, mu_sigma) %>%
-  mutate(fpr_1 = lag(fpr),
-         auc = -sens * (fpr_1 - fpr)) %>%
-  filter(fpr<=0.1) %>% 
-  summarise(auc = sum(auc,na.rm = T))%>% 
+  summarise(auc = max(CumulativeArea)) %>% 
   group_by(method,mu_sigma) %>% 
   summarise(mean_auc = mean(auc)) %>% 
   pivot_wider(names_from = method,
@@ -220,4 +212,7 @@ result %>%
   knitr::kable(caption = "mean AUC(FPF<0.1)",
                digits = 3)
 ```
+
+
+
 
