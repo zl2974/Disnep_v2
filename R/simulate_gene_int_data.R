@@ -28,6 +28,8 @@ simulate_gene_int_data = function(n_signal,
     
     gene_pool = unique(ppi$gene_1)
     
+    gene_pool = intersect(gene_pool,read_csv("data/TCGA.csv")$gene)
+    
     
     # sample and sort disease gene
     disease_gene = sort(sample(intersect(gene_pool,disease),n_signal))
