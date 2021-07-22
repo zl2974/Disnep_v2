@@ -5,10 +5,7 @@ simulate_case = function(n_signal,
                          strong_signal_mu,
                          median_signal_mu,
                          noise_mu,
-                         strong_corr,
-                         median_corr,
-                         noise_corr,
-                         sigma,
+                         Sigma,
                          n_case,
                          ...){
     
@@ -19,20 +16,6 @@ simulate_case = function(n_signal,
     mu_noise = rnorm(n_noise,noise_mu,1)
     
     Mu = c(mu_strong_signal,mu_median_signal,mu_noise)
-    
-    sigma_strong = matrix(runif((n_signal/2)^2,min = 0,max = strong_corr),n_signal/2)
-    
-    sigma_median = matrix(runif((n_signal/2)^2,min = 0,max = median_corr),n_signal/2)
-    
-    sigma_noise = matrix(runif(n_noise^2,min = 0,max = noise_corr),n_noise)
-    
-    Sigma = as.matrix(Matrix::bdiag(sigma_strong,sigma_median,sigma_noise))
-    
-    diag(Sigma) = 1
-    
-    Sigma = (Sigma + t(Sigma))/2
-    
-    Sigma = sigma^2*Sigma
     
     case_data = MASS::mvrnorm(n_case,mu = Mu,Sigma = Sigma)
     

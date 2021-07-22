@@ -7,6 +7,9 @@ genewanderer = function(signals,
                         iter = 10,
                         difference = 1e-6) {
   source("R/diffus_vec.R")
+  source("R/post_process.R")
+  
+  snet = post_process(se = snet,percent = .9)
   
   score = as_tibble(
     diffus_vec(

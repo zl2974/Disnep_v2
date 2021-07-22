@@ -24,7 +24,7 @@ knitr::opts_chunk$set(echo = F,
 
 ```{r give_setting}
 settings = tibble(
-  id = list(1:10),
+  id = list(1:50),
   scenario = 1:5,
   n_signal = rep(50,5),
   n_noise  = rep(1950,5),
@@ -34,8 +34,10 @@ settings = tibble(
   strong_corr = rep(0.1,5),
   median_corr = rep(0.02,5),
   noise_corr = rep(0.01,5),
-  sigma = c(3,2,1,1,1)
-)
+  sigma = c(3,2,1,1,1),
+  prob_jump = rep(0.5,5)
+) %>% 
+  filter(scenario %in% 1:5)
 
 
 knitr::kable(t(settings %>% select(-id)),
@@ -109,7 +111,7 @@ doParallel::registerDoParallel(cl)
 
 result = foreach(
   i = 1:nrow(settings),
-  .errorhandling = "remove",
+  .errorhandling = "pass",
   .packages = c(
     "SNFtool",
     "MASS",
@@ -118,8 +120,7 @@ result = foreach(
     "readr",
     "dplyr",
     "tidyverse"
-  ),
-  .verbose = F
+  )
 ) %dopar% pmap(settings[i, ], simulation)
 
 stopCluster(cl)

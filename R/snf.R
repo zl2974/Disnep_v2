@@ -4,7 +4,9 @@ snf = function(signals,
                gene_int,
                gene_expr,
                k = 200,
-               iter = 10) {
+               iter = 10,
+               beta,
+               ...) {
   
   # normalize gene interaction
   sortedColumn = sort(colnames(gene_int))
@@ -18,9 +20,7 @@ snf = function(signals,
   
   gene_expr = gene_expr[,sortedColumn]
   
-  adjacency = abs(cor(gene_expr))#as.matrix(dist(t(gene_expr)))
-  
-  #adjacency = SNFtool::affinityMatrix(adjacency,K=k)
+  adjacency = abs(cor(gene_expr))
   
   rownames(adjacency) = colnames(gene_int)
   colnames(adjacency) = colnames(gene_int)
@@ -39,7 +39,7 @@ snf = function(signals,
   
   signals = arrange(signals,gene)
   
-  score = diffus_vec(signals = signals,snet = snet_post,type = "statistics",iter = 100)
+  score = diffus_vec(signals = signals,snet = snet_post,type = "statistics",iter = 100,beta=beta)
   
   return(score)
   

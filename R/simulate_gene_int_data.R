@@ -13,7 +13,7 @@ simulate_gene_int_data = function(n_signal,
     
     
     # load gene gene interaction network lable
-    protein_gene_name = readr::read_csv("data/String_Network_default_node_04.csv",
+    protein_gene_name = readr::read_csv("data/String_Network_default_node_02.csv",
                                         progress = F) %>% 
         select(gene = `display name` , protein = `stringdb::database identifier`) %>% 
         filter(!str_detect(gene,"ENSP"))

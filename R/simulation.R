@@ -9,9 +9,11 @@ simulation = function(id,
                       median_corr,
                       noise_corr,
                       sigma,
+                      prob_jump,
                       ...) {
     
     if (F) {
+        id = 1
         n_signal = 20
         n_noise = 980
         strong_signal_mu = 10
@@ -89,7 +91,8 @@ simulation = function(id,
     ## GeneWander
     
     source("R/genewanderer.R")
-    score_genewanderer = genewanderer(signals, gene_int_data, type = "statistics") %>%
+    score_genewanderer = genewanderer(signals, gene_int_data, type = "statistics",
+                                      beta = prob_jump) %>%
         arrange(gene) %>% 
         nest(score = everything()) %>%
         bind_cols(setting) %>%
@@ -111,7 +114,8 @@ simulation = function(id,
     ## DISNEP
     
     source("R/disnep.R")
-    score_disnep = disnep(signals, gene_int_data, gene_expr_data, type = "statistics") %>%
+    score_disnep = disnep(signals, gene_int_data, gene_expr_data, type = "statistics",
+                          alpha = 0.5, beta = prob_jump) %>%
         arrange(gene) %>% 
         nest(score = everything()) %>%
         bind_cols(setting) %>%
@@ -120,6 +124,38 @@ simulation = function(id,
     
     saveRDS(score_disnep,
             paste0("cache/result/", Sys.Date(), "_", id, "_disnep.Rdata"))
+    
+    
+    ##### try a perfect network
+    #source("R/perfect.R")
+    #score_perfect = perfect(signals,gene_int_data,n_signal,n_noise,strong_corr)%>%
+    #    arrange(gene) %>% 
+    #    nest(score = everything()) %>%
+    #    bind_cols(setting) %>%
+    #    mutate(id = id,
+    #           method = "Perfect")
+    #
+    #saveRDS(score_perfect,
+    #        paste0("cache/result/", Sys.Date(), "_", id, "_perfect.Rdata"))
+    #
+    ##### SNF
+    #source("R/snf.R")
+    #score_snf = snf(
+    #    signals = signals,
+    #    gene_int = gene_int_data,
+    #    gene_expr = gene_expr_data,
+    #    k = 0.1 * (n_signal + n_noise),
+    #    iter = 10,
+    #    beta = prob_jump
+    #) %>%
+    #    arrange(gene) %>%
+    #    nest(score = everything()) %>%
+    #    bind_cols(setting) %>%
+    #    mutate(id = id,
+    #           method = "SNF")
+    #
+    #saveRDS(score_snf,
+    #        paste0("cache/result/", Sys.Date(), "_", id, "_snf.Rdata"))
     
     
     
