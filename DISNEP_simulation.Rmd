@@ -24,10 +24,10 @@ knitr::opts_chunk$set(echo = F,
 
 ```{r give_setting}
 settings = tibble(
-  id = list(1:50),
+  id = list(1:10),
   scenario = 1:5,
-  n_signal = rep(50,5),
-  n_noise  = rep(1950,5),
+  n_signal = rep(20,5),
+  n_noise  = rep(980,5),
   strong_signal_mu = c(10,10,10,11,12),
   median_signal_mu = c(9,9,9,10,11),
   noise_mu = rep(8,5),
@@ -94,7 +94,7 @@ all gene expression is generated from multivariate normal, with generated means 
   
 
 
-```{r simulation,eval=T}
+```{r simulation,eval=F}
 
 source("R/simulation.R")
 
@@ -189,6 +189,7 @@ result %>%
   ggplot(aes(x = fpr, y = sens, color = method)) +
   geom_step()+
   geom_abline(slope = 1,alpha = 0.25)+
+  ggplot2::scale_color_viridis_d()+
   facet_wrap(.~mu_sigma)+
   labs(title = "ROC")
 
@@ -198,9 +199,19 @@ result %>%
   summarise(auc = max(CumulativeArea)) %>% 
   ggplot(aes(x = method, y = auc, color = method)) +
   geom_boxplot()+
+  ggplot2::scale_color_viridis_d()+
   facet_wrap(.~mu_sigma,scales = "free_y")+
   labs(title = "AUC(FPR<0.1)")
 
+result %>%
+  filter(top_k<=500) %>% 
+  group_by(top_k,method, mu_sigma) %>%
+  summarise(True_Positive = mean(n_signal*CumulativeTPR)) %>% 
+  ggplot(aes(x = top_k, y = True_Positive, color = method)) +
+  geom_line()+
+  ggplot2::scale_color_viridis_d()+
+  facet_wrap(.~mu_sigma,scales = "free_y")+
+  labs(title = "Mean True Positive")
 
 result %>%
   filter(CumulativeFPR<=0.1) %>% 

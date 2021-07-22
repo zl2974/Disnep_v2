@@ -19,11 +19,11 @@ simulate_gene_expr_data = function(n_signal,
     
     ### Generate Sigma
     
-    sigma_strong = runif((n_signal/2),min = 0,max = 1/strong_corr)
+    sigma_strong = runif((n_signal/2),min = 1/strong_corr,max = 2/strong_corr)
     
-    sigma_median = runif((n_signal/2),min = 0,max = 1/median_corr)
+    sigma_median = runif((n_signal/2),min = 1/median_corr,max = 2/median_corr)
     
-    sigma_noise = runif(n_noise,min = 0,max = 1/noise_corr)
+    sigma_noise = runif(n_noise,min = 1/noise_corr,max = 2/noise_corr)
     
     Sigma = as.matrix(Matrix::bdiag(diag(sigma_strong), diag(sigma_median), diag(sigma_noise)))
     

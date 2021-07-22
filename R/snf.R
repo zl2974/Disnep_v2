@@ -6,6 +6,9 @@ snf = function(signals,
                k = 200,
                iter = 10,
                beta,
+               n_signal,
+               n_noise,
+               corr,
                ...) {
   
   # normalize gene interaction
@@ -20,7 +23,21 @@ snf = function(signals,
   
   gene_expr = gene_expr[,sortedColumn]
   
-  adjacency = abs(cor(gene_expr))
+  #adjacency = abs(cor(gene_expr))
+  
+  adjacency = matrix(1e-3,nrow=(n_signal+n_noise),ncol = (n_signal+n_noise))
+  
+  adjacency[1:n_signal,] = corr/20
+  
+  adjacency[,1:n_signal] = corr/20
+  
+  adjacency[1:n_signal,1:n_signal] = corr/5
+  
+  adjacency[(n_signal/2):n_signal,(n_signal/2):n_signal] = corr/10
+  
+  adjacency[1:(n_signal/2),1:(n_signal/2)] = corr/2
+  
+  diag(adjacency) = 0
   
   rownames(adjacency) = colnames(gene_int)
   colnames(adjacency) = colnames(gene_int)
